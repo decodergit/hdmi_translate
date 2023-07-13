@@ -1,0 +1,12 @@
+{
+    "language_from_tesseract": "eng",
+    "language_from_translate": "en",
+    "language_to": "ru",
+    "use_srgan": false,
+    "video_device_index": 0,
+    "output_width": 1920,
+    "output_height": 1080,
+    "border": 50,
+    "audio_device_pattern": "USB Audio",
+    "channels": 2
+}
