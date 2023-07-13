@@ -15,6 +15,7 @@
 
 import cv2
 import pytesseract
+import numpy as np
 from translate import Translator
 import tensorflow as tf
 import textwrap
@@ -210,39 +211,23 @@ def translate_image(frame):
     return translator.translate(text)
 
 
-def upscale_image(image, width, height):
-    # Определение текущего размера изображения
-    img_height, img_width = image.shape[:2]
-    # Вычисление соотношений масштабирования
-    width_ratio = width / float(img_width)
-    height_ratio = height / float(img_height)
-    # Определение нового масштабного коэффициента
-    ratio = min(width_ratio, height_ratio)
-    # Вычисление нового размера изображения
-    new_width = int(img_width * ratio)
-    new_height = int(img_height * ratio)
-    # Масштабирование изображения с сохранением пропорций
-    resized_image = cv2.resize(image, (new_width, new_height))
-    # Вычисление разницы в размере для создания пустых областей
-    width_diff = width - new_width
-    height_diff = height - new_height
-    # Расчет границ для добавления пустых областей
-    top = height_diff // 2
-    bottom = height_diff - top
-    left = width_diff // 2
-    right = width_diff - left
-    # Заполнение пустых областей черным цветом
-    resized_image = cv2.copyMakeBorder(resized_image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
-    return resized_image
+def upscale_image(image):
+    height, width = image.shape[:2]
+    scale = max(1, min(VIDEO_HEIGHT // height, VIDEO_WIDTH // width))
+    new_width = int(width * scale)
+    new_height = int(height * scale)    
+    new_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
+    # Создание черного фона
+    bg = np.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, 3), dtype=np.uint8)
+    left_border = (VIDEO_WIDTH - new_width) // 2
+    top_border = (VIDEO_HEIGHT - new_height) // 2
+    # Размещение уменьшенного изображения на фоне
+    bg[top_border:top_border+new_height, left_border:left_border+new_width] = new_image
+    return bg
 
 
 def overlay_text(image, text, font_face=cv2.FONT_HERSHEY_COMPLEX, font_scale=1.0, font_thickness=2):
-    image_height, image_width = image.shape[:2]
-
-    # Апскейл.
-    if (image_height, image_width) != (VIDEO_HEIGHT, VIDEO_WIDTH):
-        image = upscale_image(image, VIDEO_WIDTH, VIDEO_HEIGHT)
-        image_height, image_width = VIDEO_HEIGHT, VIDEO_WIDTH
+    image_height = image.shape[0]
     
     # Оверлей.
     x, y = 100, int(3*image_height/5)
@@ -288,6 +273,8 @@ while True:
 
     # Если кадр успешно получен
     if ret:
+        if frame.shape[:2] != (VIDEO_HEIGHT, VIDEO_WIDTH):
+            frame = upscale_image(frame)
         if translate_mode:
             if translated_text is None:
                 translated_text = translate_image(frame)
